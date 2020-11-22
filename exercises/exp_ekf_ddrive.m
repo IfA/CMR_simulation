@@ -5,7 +5,7 @@ function exp = exp_ekf_ddrive()
     exp = experiment_base('ddrive_ekf');
     
     % Some configuration options for the experiment
-    useEmptyRoom = true;
+    useEmptyRoom = false;
     useFilterPose = true;
         
     if useEmptyRoom
@@ -50,7 +50,7 @@ function exp = exp_ekf_ddrive()
     if useFilterPose
         exp.robot.localizationPose = block_extract('localization', 'pose');
         exp.robot.controller.depends = {'localizationPose'};
-    end
+    end    
     
     % add the sensors
     exp.robot.sensors.odometer = sensor_odometer_wheelspeed();
@@ -63,10 +63,33 @@ function exp = exp_ekf_ddrive()
     exp.robot.rangeError = 2 / 100;    
     
     % ...and finally the localization filter
-    exp.robot.localization = filter_ddrive_ekf();   
+    variant = 1;
+    switch variant
+        case 1    
+            % (variant 1: prediction using ODE45; linearize, then discretize; use
+            % cartesian measurements)
+            exp.robot.localization = filter_ddrive_ekf();   
+            exp.robot.localization.useNumericPrediction = true;
+            exp.robot.localization.useExactDiscretization = false;
+            exp.robot.localization.useCartesianSensor = false;
+            exp.robot.localization.useRange = true;
+            exp.robot.localization.useBearing = true;
+    
+        case 2    
+            % (variant 2: analytic prediction, exact discretization, followed by
+            % linearization, range+bearing measurements)
+            exp.robot.localization = filter_ddrive_ekf();   
+            exp.robot.localization.useNumericPrediction = false;
+            exp.robot.localization.useExactDiscretization = true;
+            exp.robot.localization.useCartesianSensor = false;
+            exp.robot.localization.useRange = true;
+            exp.robot.localization.useBearing = true;
+        otherwise
+            disp('Undefined EKF configuration!');
+    end
     
     % (This is only required when useFilterPose = false)
-    exp.depends = {'*localization'};
+	exp.depends = {'*localization'};
 
     
     exp.display.title = 'Differential Drive with EKF-based fusion of dead reckoning and a landmark sensor';       
